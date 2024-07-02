@@ -9,7 +9,7 @@ import re
 
 
 if INPI:
-    from text_control import text_cmd_parse
+    from engine_control import text_cmd_parse, engine_control
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -88,5 +88,16 @@ def sttAPI():
     text = mp2text(filename=file.filename, dir=UPLOAD_FOLDER)
     return jsonify(text)
     
+
+@app.route('/engine', methods=['POST'])
+def engine():
+    # 备注：暂时没有做状态读回
+    data = request.json
+    id, pwm = data['id'], data['pwm']
+    if INPI:
+        cmd = engine_control(id=id, pwm=pwm)
+        return jsonify(cmd)
+    return jsonify(True)
+
 
 app.run(debug=True, host="0.0.0.0", port=5000)

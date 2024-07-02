@@ -49,6 +49,13 @@ def app():
         text_cmd_parse(cmd=cmd)
 
 
+def engine_control(id: int=255, pwm: int=1500, time: int=1000):
+    '''控制舵机'''
+    cmd = f'#{id:03d}P{pwm:04d}T{time:04d}!'
+    myUart.uart_send_str(cmd)
+    return cmd
+
+
 if __name__ == '__main__':
     text_cmd_parse()
     app()

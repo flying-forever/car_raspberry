@@ -1,28 +1,65 @@
 {% extends '_base.html' %}
 {% block body %}
-<h1>语音输入示例</h1>
-<form>
-    <label for="speechInput">说点什么:</label>
-    <textarea rows="3" type="text" id="speechInput" name="speechInput"></textarea>
-    <label for="result">命令:</label>
-    <input type="text" id="result">
-    <audio id="audioPlayback" controls></audio> <!-- 音频播放控件 -->
+<h1>语音输入-舵机控制</h1>
+<div>
+    <form>
+        <label for="speechInput">说点什么:</label>
+        <textarea rows="3" type="text" id="speechInput" name="speechInput"></textarea><br>
+        <label for="result">命令:</label>
+        <input type="text" id="result">
+        <audio id="audioPlayback" controls></audio> <!-- 音频播放控件 -->
 
-    
-    <button id="start" type="button" onclick="speechAPI()">开始输入</button>
-    <button type="button" onclick="submit_text()">提交</button>
-    
+        <button id="start" type="button" onclick="speechAPI()">开始输入</button>
+        <button type="button" onclick="submit_text()">提交</button>
+    </form>
+
+    <div id="engines">
+        <div id="engine0" class="engine" data-engine-id="0">
+            <button class="sub">-</button>
+            0号:<span class="pwm">1500</span>
+            <button class="add">+</button>
+        </div>
+        <div id="engine1" class="engine" data-engine-id="1">
+            <button class="sub">-</button>
+            1号:<span class="pwm">1500</span>
+            <button class="add">+</button>
+        </div>
+        <div id="engine2" class="engine" data-engine-id="2">
+            <button class="sub">-</button>
+            2号:<span class="pwm">1500</span>
+            <button class="add">+</button>
+        </div>
+        <div id="engine3" class="engine" data-engine-id="3">
+            <button class="sub">-</button>
+            3号:<span class="pwm">1500</span>
+            <button class="add">+</button>
+        </div>
+        <div id="engine4" class="engine" data-engine-id="4">
+            <button class="sub">-</button>
+            4号:<span class="pwm">1500</span>
+            <button class="add">+</button>
+        </div>
+        <div id="engine5" class="engine" data-engine-id="5">
+            <button class="sub">-</button>
+            5号:<span class="pwm">1500</span>
+            <button class="add">+</button>
+        </div>
+    </div>
+
     <hr>
-    <label for="console">消息板:</label>
+    <label for="console">调试信息:</label>
     <textarea rows="8" type="text" id="console" name="speechInput" style="width: 70%"></textarea>
-</form>
+</div>
 
 
 <script>
     var RACEID = 0;
     var is_inputing = false;
-    function printc(m) {
-        $('#console').val($('#console').val() + '\n' + m)
+    function printc(...messages) {
+        let currentText = $('#console').val(); // 获取当前的文本
+        let newText = messages.join(' '); // 将所有参数拼接成一个字符串
+        $('#console').val(currentText + '\n' + newText); // 追加新文本
+        console.log(newText)
     }
     $('#start').click(function () {
         if (is_inputing == false) {
@@ -88,7 +125,8 @@
 
             if (RACEID == id) {
                 RACEID += 1;
-                console.log('[RACE] speechAPI win')
+                // console.log('[RACE] speechAPI win')
+                printc('[RACE] speechAPI win')
                 $('#speechInput').val(text)
                 submit_text()  // 识别后自动提交
             }
@@ -98,9 +136,9 @@
             recognition.stop();
         }
     }
-    function speechStop() { 
-        if (! window.hasOwnProperty('webkitSpeechRecognition')) return;
-        recognition.stop(); 
+    function speechStop() {
+        if (!window.hasOwnProperty('webkitSpeechRecognition')) return;
+        recognition.stop();
     }
 
 
@@ -149,12 +187,66 @@
 
             if (RACEID == id) {
                 RACEID += 1;
-                console.log('[race] sttAPI win')
+                // console.log('[race] sttAPI win')
+                printc('[race] sttAPI win')
                 $('#speechInput').val(data)
                 submit_text()  // 识别后自动提交
             }
         })
     }
 
+
+    // ------------------------------ 3 按钮控制舵机 ------------------------------
+
+
+    $(document).ready(function () {
+        // 事件委托，监听所有 .engine 容器内的按钮点击事件
+        $('.engine').on('click', '.sub, .add', function () {
+
+            var $engine = $(this).closest('.engine');// 获取点击的按钮所在的计数器容器
+            var engineId = $engine.data('engine-id');
+            var $pwm = $engine.find('.pwm');// 获取计数器显示的元素
+            var currentValue = parseInt($pwm.text(), 10);// 获取当前计数值
+
+            // 判断是增加按钮还是减少按钮
+            if ($(this).hasClass('add')) {
+                currentValue += 100;
+            } else if ($(this).hasClass('sub')) {
+                currentValue -= 100;
+            }
+
+            // update
+            fetch('/engine', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: engineId,
+                    pwm: currentValue
+                })
+            }).then(response => response.json()).then(data => {
+                printc(data)
+            })
+            $pwm.text(currentValue);
+        });
+    });
+
+
 </script>
+
+
+<style>
+    body,
+    button,
+    textarea,
+    input {
+        font-size: 2rem;
+    }
+
+    button {
+        margin: 0.25rem;
+        min-width: 3rem;
+    }
+</style>
 {% endblock %}
