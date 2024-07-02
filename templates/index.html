@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>语音输入示例</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    <h1>语音输入示例</h1>
+    <form>
+        <label for="speechInput">说点什么:</label>
+        <textarea rows="3" type="text" id="speechInput" name="speechInput"></textarea>
+        <input type="text" id="result">
+        <button id="start" type="button" onclick="startDictation()">开始输入</button>
+        <button type="button" onclick="submit_form()">提交</button>
+    </form>
+
+    <script>
+        // 1 获取语音输入
+        var recognition;
+        var is_inputing = false;
+        function startDictation() {
+            if (window.hasOwnProperty('webkitSpeechRecognition')) {
+                if (is_inputing) {
+                    recognition.stop();
+                    $('#start').text('开始输入')
+                    is_inputing = false
+                    return
+                }
+                
+                $('#start').text('完成')
+                is_inputing = true
+                recognition = new webkitSpeechRecognition();
+
+                recognition.continuous = false;  // 不主动停
+                recognition.interimResults = false; // 中间return
+
+                recognition.lang = "zh-CN";
+                recognition.start();
+
+                recognition.onresult = function (e) {
+                    document.getElementById('speechInput').value = e.results[0][0].transcript;
+                    recognition.stop();
+                    submit_form()  // 识别后自动提交
+                };
+
+                recognition.onerror = function (e) {
+                    recognition.stop();
+                }
+            }
+        }
+        // 2 异步请求 - 识别指令
+        function submit_form() {
+            var data = {};
+            data.content = $('#speechInput').val()
+            console.log(data)
+
+            $.ajax({
+                url: "{{ url_for('text2cmd') }}",
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json', // 如果你期望服务器返回JSON数据 
+                data: JSON.stringify(data),
+                success: function (res) {
+                    console.log('res', res)
+                    $('#result').val(res)
+                }
+            })
+        };
+        
+    </script>
+</body>
+
+</html>
