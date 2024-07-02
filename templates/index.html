@@ -1,75 +1,160 @@
-<!DOCTYPE html>
-<html>
+{% extends '_base.html' %}
+{% block body %}
+<h1>语音输入示例</h1>
+<form>
+    <label for="speechInput">说点什么:</label>
+    <textarea rows="3" type="text" id="speechInput" name="speechInput"></textarea>
+    <label for="result">命令:</label>
+    <input type="text" id="result">
+    <audio id="audioPlayback" controls></audio> <!-- 音频播放控件 -->
 
-<head>
-    <title>语音输入示例</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
+    
+    <button id="start" type="button" onclick="speechAPI()">开始输入</button>
+    <button type="button" onclick="submit_text()">提交</button>
+    
+    <hr>
+    <label for="console">消息板:</label>
+    <textarea rows="8" type="text" id="console" name="speechInput" style="width: 70%"></textarea>
+</form>
 
-<body>
-    <h1>语音输入示例</h1>
-    <form>
-        <label for="speechInput">说点什么:</label>
-        <textarea rows="3" type="text" id="speechInput" name="speechInput"></textarea>
-        <input type="text" id="result">
-        <button id="start" type="button" onclick="startDictation()">开始输入</button>
-        <button type="button" onclick="submit_form()">提交</button>
-    </form>
 
-    <script>
-        // 1 获取语音输入
-        var recognition;
-        var is_inputing = false;
-        function startDictation() {
-            if (window.hasOwnProperty('webkitSpeechRecognition')) {
-                if (is_inputing) {
-                    recognition.stop();
-                    $('#start').text('开始输入')
-                    is_inputing = false
-                    return
-                }
-                
+<script>
+    var RACEID = 0;
+    var is_inputing = false;
+    function printc(m) {
+        $('#console').val($('#console').val() + '\n' + m)
+    }
+    $('#start').click(function () {
+        if (is_inputing == false) {
+            try {
+                recordStart()
+                speechAPI()
                 $('#start').text('完成')
-                is_inputing = true
-                recognition = new webkitSpeechRecognition();
-
-                recognition.continuous = false;  // 不主动停
-                recognition.interimResults = false; // 中间return
-
-                recognition.lang = "zh-CN";
-                recognition.start();
-
-                recognition.onresult = function (e) {
-                    document.getElementById('speechInput').value = e.results[0][0].transcript;
-                    recognition.stop();
-                    submit_form()  // 识别后自动提交
-                };
-
-                recognition.onerror = function (e) {
-                    recognition.stop();
-                }
+            } catch (error) {
+                printc('[start]: error')
+                printc(error)
+            }
+        } else {
+            try {
+                speechStop()
+                recordStop()  // MediaRecorder在手机似乎不被支持
+                $('#start').text('开始输入')
+            } catch (error) {
+                printc('[stop] error:')
+                printc(error)
+                printc('recognition:' + recognition)
+                printc('mediaRecorder:' + mediaRecorder)
             }
         }
-        // 2 异步请求 - 识别指令
-        function submit_form() {
-            var data = {};
-            data.content = $('#speechInput').val()
-            console.log(data)
+        is_inputing ^= true;  // 翻转
+    })
+    function submit_text() {
+        var data = {};
+        data.content = $('#speechInput').val()
+        console.log(data)
 
-            $.ajax({
-                url: "{{ url_for('text2cmd') }}",
-                type: 'POST',
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json', // 如果你期望服务器返回JSON数据 
-                data: JSON.stringify(data),
-                success: function (res) {
-                    console.log('res', res)
-                    $('#result').val(res)
-                }
-            })
+        $.ajax({
+            url: "{{ url_for('text2cmd') }}",
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json', // 如果你期望服务器返回JSON数据 
+            data: JSON.stringify(data),
+            success: function (res) {
+                console.log('res', res)
+                $('#result').val(res)
+            }
+        })
+    };
+
+
+    // ------------------------------ 1 webspeech 识别语音输入 ------------------------------
+
+
+    var recognition;
+    function speechAPI() {
+        if (!window.hasOwnProperty('webkitSpeechRecognition')) return;
+
+        var id = RACEID;
+        recognition = new webkitSpeechRecognition();
+
+        recognition.continuous = false;  // 不主动停
+        recognition.interimResults = false; // 中间return
+        recognition.lang = "zh-CN";
+        recognition.start();
+
+        recognition.onresult = function (e) {
+            var text = e.results[0][0].transcript;
+            console.log('[speechAPI] ', text);
+
+            if (RACEID == id) {
+                RACEID += 1;
+                console.log('[RACE] speechAPI win')
+                $('#speechInput').val(text)
+                submit_text()  // 识别后自动提交
+            }
+            recognition.stop();
         };
-        
-    </script>
-</body>
+        recognition.onerror = function (e) {
+            recognition.stop();
+        }
+    }
+    function speechStop() { 
+        if (! window.hasOwnProperty('webkitSpeechRecognition')) return;
+        recognition.stop(); 
+    }
 
-</html>
+
+    // ------------------------------ 2 调用stt 识别语音输入 ------------------------------
+
+
+    let mediaRecorder;  // 存储MediaRecorder实例
+    let audioChunks = [];  // 存储音频数据片段
+    async function recordStart() {
+        let stream = await navigator.mediaDevices.getUserMedia({ audio: true });// 获取音频流
+        mediaRecorder = new MediaRecorder(stream); // 创建MediaRecorder实例
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data); // 当有音频数据可用时，将其存储在audioChunks数组中
+        };
+
+        mediaRecorder.onstop = () => {
+            let audioBlob = new Blob(audioChunks, { type: 'audio/mp3' }); // 将音频数据转换为Blob对象
+            let audioUrl = URL.createObjectURL(audioBlob); // 生成一个可以播放的URL
+            document.getElementById('audioPlayback').src = audioUrl; // 设置音频播放控件的src属性
+
+            sendAudioToServer(audioBlob); // 上传音频到服务器
+            audioChunks = []
+        };
+
+        mediaRecorder.start();
+    };
+    function recordStop() { mediaRecorder.stop(); }
+    function sendAudioToServer(audioBlob) {
+        var id = RACEID;
+        let formData = new FormData(); // 创建FormData对象
+        formData.append('audio', audioBlob, 'recording.mp3'); // 添加音频Blob，@name：表单字段名  
+
+        fetch('/sttapi', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            // 处理响应，根据上传结果显示相应的提示信息
+            if (response.ok) {
+                return response.json()
+                console.log('Audio uploaded successfully!');
+            } else {
+                console.log('Upload failed.');
+            }
+        }).then(data => {
+            console.log('[sttAPI]', data)
+
+            if (RACEID == id) {
+                RACEID += 1;
+                console.log('[race] sttAPI win')
+                $('#speechInput').val(data)
+                submit_text()  // 识别后自动提交
+            }
+        })
+    }
+
+</script>
+{% endblock %}

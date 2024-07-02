@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# from sparkai.llm.llm import ChatSparkLLM, ChunkPrintHandler
-# from sparkai.core.messages import ChatMessage
 import requests, timeit
 
 #星火认知大模型Spark Max的URL值，其他版本大模型URL值请前往文档（https://www.xfyun.cn/doc/spark/Web.html）查看
