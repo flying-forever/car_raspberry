@@ -4,7 +4,8 @@ import time
 from flask import Flask, render_template, jsonify, request
 from spark import zl_http
 from stt import mp2text
-from config import results, INPI, UPLOAD_FOLDER
+# from config import results
+from config import INPI, UPLOAD_FOLDER
 import re
 
 
@@ -39,13 +40,6 @@ def re(text: str, results: list):
         if result in text:
             return result
     return None
-
-
-def send_cmd(cmd):
-    '''控制机械臂 | 向网页返回识别结果'''
-    if INPI:
-        text_cmd_parse(cmd=cmd)
-    return jsonify(cmd)
     
 
 # ------------------------------------  路由  ------------------------------------
@@ -54,22 +48,6 @@ def send_cmd(cmd):
 @app.route('/')
 def index():
     return render_template('index.html')
-
-
-@app.route('/text2cmd', methods=['POST'])
-def text2cmd():
-    
-    data = request.json  ;print(data)
-    text = data['content']
-
-    # 1 机械文本匹配
-    r = re(text=text, results=results)
-    if r:
-        return send_cmd(r)
-
-    # 2 使用大模型语义比对
-    r = zl_http(content=data['content'], model='generalv3', results=results)  ;print(r)
-    return send_cmd(r)
 
 
 @app.route('/sttapi', methods=['POST'])
@@ -89,18 +67,6 @@ def sttAPI():
     text = mp2text(filename=file.filename, dir=UPLOAD_FOLDER)
     return jsonify(text)
     
-
-@app.route('/engine', methods=['POST'])
-def engine():
-    '''舵机模式的控制'''
-    # 备注：暂时没有做状态读回
-    data = request.json
-    id, pwm = data['id'], data['pwm']
-    if INPI:
-        cmd = engine_control(id=id, pwm=pwm)
-        return jsonify(cmd)
-    return jsonify(True)
-
 
 # ------------------------------------  小车控制  ------------------------------------
 
@@ -125,6 +91,7 @@ def car():
 @app.route('/car_double', methods=['POST'])
 def car_double():
     '''两个轮子一起动'''
+    # 备注：设计地不太面向对象
     
     data = request.json
     print('[car_double]', data)
@@ -154,4 +121,70 @@ def car_stop(left: int=None):
     return jsonify(True)
 
 
-app.run(debug=True, host="0.0.0.0", port=5000)
+# ------------------------------------  小车控制 - 语音  ------------------------------------
+
+
+class CarShow:
+    '''小车的组合动作展示'''
+
+    d = {
+        'S形走位': lambda: CarShow.S_move(),   
+        '前进': lambda: Car.move_double(forward=True, pwml=2000, pwmr=2000, t=3), 
+        '后退': lambda: Car.move_double(forward=False, pwml=2000, pwmr=2000, t=3),
+        '向左转': lambda: Car.move_double(forward=True, pwml=2000, pwmr=2500, t=3),
+        '向右转': lambda: Car.move_double(forward=True, pwml=2500, pwmr=2000, t=3),
+    }
+
+    @staticmethod
+    def S_move():
+        '''S形状走位'''
+        groups = [
+            {'forward': True, 'pwml': 1600, 'pwmr': 1600, 't': 1}, 
+            {'forward': True, 'pwml': 2000, 'pwmr': 2000, 't': 1, 'turn_left': False},
+            {'forward': True, 'pwml': 1800, 'pwmr': 2500, 't': 4},
+            {'forward': True, 'pwml': 2500, 'pwmr': 1800, 't': 4},
+            {'forward': True, 'pwml': 2500, 'pwmr': 2500, 't': 1, 'turn_left': True},   
+        ]
+        for g in groups:
+            Car.move_double(**g)  # 解包语法挺好用的
+            time.sleep(g['t'])
+
+
+def test_car():
+    while True:
+        cmd = input('Please input the command by text: ') 
+        if 's' in cmd:
+            reverse = 'rv' in cmd
+            CarShow.S_move(reverse=reverse)
+            print(f'[{CarShow.S_move.__name__}]')
+        else:
+            print('[error] not recognized cmd')
+
+
+results = list(CarShow.d.keys())
+
+
+@app.route('/text2cmd', methods=['POST'])
+def text2cmd():
+    
+    def send(r):
+        if INPI:
+            CarShow.d[r]()
+        return jsonify(r)
+
+    data = request.json  ;print(data)
+    text = data['content']
+
+    # 1 机械文本匹配
+    r = re(text=text, results=results)
+    if r:
+        return send(r)
+
+    # 2 使用大模型语义比对
+    r = zl_http(content=data['content'], model='generalv3', results=results)  ;print(r)
+    return send(r)
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host="0.0.0.0", port=5000)
+    # test_car()
