@@ -10,6 +10,7 @@ import re
 
 if INPI:
     from engine_control import text_cmd_parse, engine_control
+    from engine_control import Car
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -91,11 +92,31 @@ def sttAPI():
 
 @app.route('/engine', methods=['POST'])
 def engine():
+    '''舵机模式的控制'''
     # 备注：暂时没有做状态读回
     data = request.json
     id, pwm = data['id'], data['pwm']
     if INPI:
         cmd = engine_control(id=id, pwm=pwm)
+        return jsonify(cmd)
+    return jsonify(True)
+
+
+# ------------------------------------  小车控制  ------------------------------------
+
+
+@app.route('/car', methods=['POST'])
+def car():
+    '''小车控制
+    @forward: bool, 前进 / 后退
+    @left: bool, 左轮 / 右轮
+    @pwm: int, 速度
+    @time: int, 持续时间'''
+
+    data = request.json
+    forward, left, pwm, time = data['forward'], data['left'], data['pwm'], data['time']
+    if INPI:
+        cmd = Car.move(forward=forward, left=left, pwm=pwm, t=time)
         return jsonify(cmd)
     return jsonify(True)
 
