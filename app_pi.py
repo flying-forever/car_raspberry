@@ -122,6 +122,24 @@ def car():
     return jsonify(True)
 
 
+@app.route('/car_double', methods=['POST'])
+def car_double():
+    '''两个轮子一起动'''
+    
+    data = request.json
+    print('[car_double]', data)
+    forward, pwml, pwmr, time = data['forward'], data['pwml'], data['pwmr'], data['time']
+    try:
+        turn_left = data['turn_left']
+    except:
+        turn_left = None
+
+    if INPI:
+        cmd = Car.move_double(forward=forward, pwml=pwml, pwmr=pwmr, t=time, turn_left=turn_left)
+        return jsonify(cmd)
+    return jsonify(True)
+
+
 @app.route('/car_stop/<int:left>', methods=['GET'])
 @app.route('/car_stop', methods=['GET'])
 def car_stop(left: int=None):

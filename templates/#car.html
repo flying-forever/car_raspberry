@@ -6,29 +6,49 @@
     i {
         font-size: 80px;
     }
+
     i.small {
         font-size: 50px;
     }
+
     /* .wheel {
         font-size: 120px;
     } */
     i.margin-l {
-        margin-left: 100px;
+        margin-left: 80px;
     }
-    .ri-time-line{
-        margin-left: 70px;
+
+    .ri-time-line {
+        margin-left: 50px;
+    }
+
+    .pad-l {
+        text-align: left;
+        padding-left: 70px;
+    }
+
+    .pad-r {
+        text-align: right;
+        padding-right: 70px;
     }
 
     /* 2 对齐 布局 */
     .box_mg {
         margin-inline: 50px;
     }
+
     .align-right {
         text-align: right;
     }
+
+    .align-left {
+        text-align: right;
+    }
+
     .align-center {
         text-align: center;
     }
+
     .inline {
         display: inline;
     }
@@ -47,6 +67,7 @@
             <i class="forward ri-arrow-up-double-line"></i><br>
             <i class="backward ri-arrow-down-double-line"></i>
             <i class="stop ri-stop-circle-line"></i>
+            <i class="run backward ri-taxi-fill"></i>
         </div>
     </div>
 
@@ -62,6 +83,7 @@
         </div>
         <div id="right" class="wheel right box_mg">
             <i class="forward ri-arrow-up-double-line"></i><br>
+            <i class="run ri-run-line"></i>
             <i class="stop ri-stop-circle-line"></i>
             <i class="backward ri-arrow-down-double-line"></i>
         </div>
@@ -69,13 +91,25 @@
 </div>
 
 <!-- 2 底栏-整体控制 -->
-<div class="align-center">
-    <div class="run_time inline">
-        <i class="add ri-add-circle-line"></i>
-        <i class="sub ri-subtract-line"></i>
-        <i class="ri-time-line small"></i> <span>3</span>s
+<div class="row">
+    <div class="col-2 pad-l">
+        <i class="turn turn_left ri-reset-left-line"></i>
     </div>
-    <i class="stop ri-stop-circle-line margin-l"></i>
+
+    <div class="col-8 align-center">
+        
+        <div class="run_time inline">
+            <i class="add ri-add-circle-line"></i>
+            <i class="sub ri-subtract-line"></i>
+            <i class="ri-time-line small"></i> <span>3</span>s
+        </div>
+        <i class="stop ri-stop-circle-line margin-l"></i>
+        
+    </div>
+
+    <div class="col-2 pad-r">
+        <i class="turn turn_right ri-reset-right-line"></i>
+    </div>
 </div>
 
 
@@ -136,7 +170,53 @@
             }
             printc(url)
             fetch(url, { method: 'GET', })
-            .then(response => response.json()).then(data => {
+                .then(response => response.json()).then(data => {
+                    printc(data)
+                })
+        })
+
+        $('.run').on('click', function () {
+            var forward = true;
+            if ($(this).hasClass('backward')) {
+                forward = false;
+            }
+            fetch('/car_double', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    forward: forward,
+                    pwml: left_pwm + 1500,
+                    pwmr: right_pwm + 1500,
+                    time: run_time
+                })
+            }).then(response => response.json()).then(data => {
+                printc(data)
+            })
+        })
+
+        $('.turn').on('click', function () {
+            if ($(this).hasClass('turn_left')) {
+                turn_left = true;
+            } else if ($(this).hasClass('turn_right')) {
+                turn_left = false;
+            } else {
+                printc('[error] turn class')
+            }
+            fetch('/car_double', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    forward: true,
+                    pwml: left_pwm + 1500,
+                    pwmr: right_pwm + 1500,
+                    time: run_time,
+                    turn_left: turn_left,
+                })
+            }).then(response => response.json()).then(data => {
                 printc(data)
             })
         })
@@ -154,7 +234,7 @@
 
             if ($pwm.hasClass('left')) {
                 left_pwm = x;
-            } else if ($(this).hasClass('right')) {
+            } else if ($pwm.hasClass('right')) {
                 right_pwm = x;
             }
             $span.text(x);

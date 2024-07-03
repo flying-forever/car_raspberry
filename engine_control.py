@@ -79,7 +79,7 @@ class Car:
     '''pwm:转速, time:时间'''
 
     leftId = 3
-    rightId = 2
+    rightId = 1
     leftForwardMod = 7  # 左轮(id=3)：7前8后 | 右轮(id=2)：8前7后
 
     @staticmethod
@@ -87,8 +87,9 @@ class Car:
         return 8 if mod == 7 else 7
 
     @staticmethod
-    def move(forward=True, left=True, pwm: int=1700, t: int=1):
-        '''一个轮子的一次移动'''
+    def move(forward=True, left=True, pwm: int=1700, t: int=1, excute=True):
+        '''一个轮子的一次移动
+        @excute: False则不执行，仅仅返回命令'''
 
         whell_id = Car.leftId if left else Car.rightId
         mod_id = Car.leftForwardMod 
@@ -99,9 +100,11 @@ class Car:
 
         cmd1 = Cmds.wheel_mod_cmd(id=whell_id, mod=mod_id)
         cmd2 = Cmds.wheel_move_cmd(id=whell_id, pwm=pwm, time=t)
-        myUart.uart_send_str(cmd1)
-        time.sleep(0.5)  # 否则可能不转
-        myUart.uart_send_str(cmd2)
+        if excute:
+            # 否则仅仅返回命令
+            myUart.uart_send_str(cmd1)
+            time.sleep(0.4)  # 否则可能不转
+            myUart.uart_send_str(cmd2)
         return f'{cmd1} {cmd2}'
     
     @staticmethod
@@ -109,6 +112,30 @@ class Car:
         cmd = Cmds.stop(id=id)
         myUart.uart_send_str(cmd)
         return cmd
+
+    @staticmethod
+    def move_double(forward=True, pwml: int=1700, pwmr: int=1700, t: int=1, turn_left: bool=None):
+        '''两只轮子一起动，使用动作组。（可以差速转弯）'''
+        
+        # 单向运动 | 原地转圈
+        if turn_left is None:
+            fl = fr = forward
+        elif turn_left:
+            fl, fr = False, True
+        else:
+            fl, fr = True, False
+
+        cmdl = Car.move(forward=fl, left=True, pwm=pwml, t=t, excute=False).split()
+        cmdr = Car.move(forward=fr, left=False, pwm=pwmr, t=t,  excute=False).split()
+        
+        group_mod = '{' + cmdl[0] + cmdr[0] + '}'
+        group_move = '{' + cmdl[1] + cmdr[1] + '}'
+
+        myUart.uart_send_str(group_mod)
+        time.sleep(0.4)
+        myUart.uart_send_str(group_move)
+        
+        return f'{group_mod} {group_move}'
 
 
 def app_car():
@@ -119,9 +146,15 @@ def app_car():
         cmd = input('Please input the command by text: ') 
         if cmd == '#': 
             break
+        if 'g' in cmd:
+            # 动作组
+            forward = '1' not in cmd
+            cmd = Car.move_double(forward=forward, pwml=1800, pwmr=1700, t=2)
+            print('[run group]', cmd)
+            continue
         left = 'l' in cmd
         forward = '0' in cmd
-        cmd = Car.move(left=left, forward=forward, pwm=1700, t=2)
+        cmd = Car.move(left=left, forward=forward, pwm=1800, t=2)
         print('[run]', cmd)
 
 
