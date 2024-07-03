@@ -1,0 +1,180 @@
+<!-- 按钮控制舵机 -->
+
+
+<style>
+    /* 1 图标大小和间距 */
+    i {
+        font-size: 80px;
+    }
+    i.small {
+        font-size: 50px;
+    }
+    /* .wheel {
+        font-size: 120px;
+    } */
+    i.margin-l {
+        margin-left: 100px;
+    }
+    .ri-time-line{
+        margin-left: 70px;
+    }
+
+    /* 2 对齐 布局 */
+    .box_mg {
+        margin-inline: 50px;
+    }
+    .align-right {
+        text-align: right;
+    }
+    .align-center {
+        text-align: center;
+    }
+    .inline {
+        display: inline;
+    }
+</style>
+
+
+<!-- 1 左右控制 -->
+<div id="car" class="row">
+    <div class="col-5">
+        <div class="pwm left">
+            <i class="add ri-add-circle-line"></i>
+            <i class="sub ri-subtract-line"></i>
+            <i class="ri-speed-up-line small"></i> <span>300</span>
+        </div>
+        <div id="left" class="wheel left box_mg">
+            <i class="forward ri-arrow-up-double-line"></i><br>
+            <i class="backward ri-arrow-down-double-line"></i>
+            <i class="stop ri-stop-circle-line"></i>
+        </div>
+    </div>
+
+    <div class="col-2">
+        <h3 style="text-align: center; color: green; margin-top: 200px;">动感小车</h3>
+    </div>
+
+    <div class="col-5 align-right">
+        <div class="pwm right">
+            <i class="ri-speed-up-line small"></i> <span>300</span>
+            <i class="sub ri-subtract-line"></i>
+            <i class="add ri-add-circle-line"></i>
+        </div>
+        <div id="right" class="wheel right box_mg">
+            <i class="forward ri-arrow-up-double-line"></i><br>
+            <i class="stop ri-stop-circle-line"></i>
+            <i class="backward ri-arrow-down-double-line"></i>
+        </div>
+    </div>
+</div>
+
+<!-- 2 底栏-整体控制 -->
+<div class="align-center">
+    <div class="run_time inline">
+        <i class="add ri-add-circle-line"></i>
+        <i class="sub ri-subtract-line"></i>
+        <i class="ri-time-line small"></i> <span>3</span>s
+    </div>
+    <i class="stop ri-stop-circle-line margin-l"></i>
+</div>
+
+
+<script>
+    var left_pwm = 300;  // 这里是相对1500的差
+    var right_pwm = 300;
+    var run_time = 3;
+
+    $(document).ready(function () {
+        // 事件委托，监听所有 .engine 容器内的按钮点击事件
+        $('.wheel').on('click', '.forward, .backward', function () {
+            var $wheel = $(this).closest('.wheel');// 获取点击的按钮所在的计数器容器
+
+            // 判断操作
+            var forward = true;
+            if ($(this).hasClass('forward')) {
+                forward = true;
+            } else if ($(this).hasClass('backward')) {
+                forward = false;
+            }
+
+            var pwm = 300;
+            var left = true;
+            if ($wheel.hasClass('left')) {
+                left = true;
+                pwm = left_pwm;
+            } else if ($wheel.hasClass('right')) {
+                left = false;
+                pwm = right_pwm;
+            }
+
+            // update
+            fetch('/car', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    forward: forward,
+                    left: left,
+                    pwm: pwm + 1500,
+                    time: run_time,
+                })
+            }).then(response => response.json()).then(data => {
+                printc(data)
+            })
+            // $pwm.text(currentValue);
+        });
+
+        $('.stop').on('click', function () {
+            console.log('click stop')
+            var $wheel = $(this).closest('.wheel');
+            var url = '/car_stop';
+            if ($wheel.hasClass('left')) {
+                url += '/1';
+            } else if ($wheel.hasClass('right')) {
+                url += '/0';
+            }
+            printc(url)
+            fetch(url, { method: 'GET', })
+            .then(response => response.json()).then(data => {
+                printc(data)
+            })
+        })
+
+        $('.pwm').on('click', '.sub, .add', function () {
+            var $pwm = $(this).closest('.pwm');
+            var $span = $pwm.find('span');
+            var x = parseInt($span.text(), 10);
+            var step = 100;
+            if ($(this).hasClass('sub')) {
+                step = -step;
+            }
+            x += step;
+            x = Math.max(100, Math.min(1000, x));  // pwm(100-1000)
+
+            if ($pwm.hasClass('left')) {
+                left_pwm = x;
+            } else if ($(this).hasClass('right')) {
+                right_pwm = x;
+            }
+            $span.text(x);
+        })
+
+        $('.run_time').on('click', '.sub, .add', function () {
+            var $run_time = $(this).closest('.run_time');
+            var $span = $run_time.find('span');
+            var currentValue = parseInt($span.text(), 10);
+            var step = 1;
+            if ($(this).hasClass('sub')) {
+                step = -step;
+            }
+            currentValue += step;
+            if (currentValue < 1) {
+                currentValue = 1;
+            }
+            $span.text(currentValue);
+            run_time = currentValue;
+        })
+
+    });
+</script>

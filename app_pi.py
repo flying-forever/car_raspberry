@@ -114,9 +114,24 @@ def car():
     @time: int, 持续时间'''
 
     data = request.json
+    print('[car]', data)
     forward, left, pwm, time = data['forward'], data['left'], data['pwm'], data['time']
     if INPI:
         cmd = Car.move(forward=forward, left=left, pwm=pwm, t=time)
+        return jsonify(cmd)
+    return jsonify(True)
+
+
+@app.route('/car_stop/<int:left>', methods=['GET'])
+@app.route('/car_stop', methods=['GET'])
+def car_stop(left: int=None):
+    if INPI:
+        if left is None:
+            cmd = Car.stop()
+        elif left == 1:
+            cmd = Car.stop(id=Car.leftId)
+        elif left == 0:
+            cmd = Car.stop(id=Car.rightId)
         return jsonify(cmd)
     return jsonify(True)
 

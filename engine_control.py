@@ -70,6 +70,11 @@ class Cmds:
     def wheel_move_cmd(id: int=255, pwm: int=1700, time: int=1):
         return f'#{id:03d}P{pwm:04d}T{time:04d}!'
     
+    @staticmethod
+    def stop(id: int=255):
+        return f'#{id:03d}PDST!'
+    
+
 class Car:
     '''pwm:转速, time:时间'''
 
@@ -95,9 +100,16 @@ class Car:
         cmd1 = Cmds.wheel_mod_cmd(id=whell_id, mod=mod_id)
         cmd2 = Cmds.wheel_move_cmd(id=whell_id, pwm=pwm, time=t)
         myUart.uart_send_str(cmd1)
-        time.sleep(0.25)  # 否则可能不转
+        time.sleep(0.5)  # 否则可能不转
         myUart.uart_send_str(cmd2)
         return f'{cmd1} {cmd2}'
+    
+    @staticmethod
+    def stop(id: int=255):
+        cmd = Cmds.stop(id=id)
+        myUart.uart_send_str(cmd)
+        return cmd
+
 
 def app_car():
     '''test: 控制小车'''
