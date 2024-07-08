@@ -1,6 +1,7 @@
 import requests
+from config import STT_URL as URL
 # URL = 'http://127.0.0.1:9977/api'
-URL = 'http://192.168.43.166:9977/api'
+# URL = 'http://192.168.43.166:9977/api'
 
 
 # ------------------------------------  stt语音识别  ------------------------------------

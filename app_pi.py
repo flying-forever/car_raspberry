@@ -10,7 +10,6 @@ import re
 
 
 if INPI:
-    from engine_control import text_cmd_parse, engine_control
     from engine_control import Car
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)

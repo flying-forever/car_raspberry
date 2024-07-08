@@ -107,7 +107,8 @@ class Car:
 
 
 def app_car():
-    '''test: 控制小车'''
+    '''test: 控制小车
+    l左，r右，g两轮，0前，1后'''
 
     print('[example cmd]: left0 ')
     while True:
